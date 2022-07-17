@@ -23,7 +23,7 @@ struct Listing {
 #[derive(Serialize, Deserialize, Debug)]
 struct ListingData {
     children: Vec<Listing>,
-    after: String
+    after: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,24 +32,25 @@ struct ListingResponse {
     data: ListingData,
 }
 
-pub async fn download_a_page(subreddit: &str, period: &str, after_token: &str) -> Result<(), anyhow::Error> {
+pub async fn download_a_page(subreddit: String, period: &str, after_token: &str) -> Result<Option<String>, anyhow::Error> {
     let url = format!("https://www.reddit.com/r/{}/top.json?limit=100&sort=top&t={}&after={}", subreddit, period, after_token);
     let response = reqwest::get(url).await?
         .json::<ListingResponse>()
         .await?;
 
     let join_handles = response.data.children.into_iter().map(|child| {
+        let subreddit_clone = subreddit.clone();
         tokio::spawn(async move {
             if !child.data.is_video {
                 let url = &child.data.url;
                 println!("URL:{}", &url);
                 if url.ends_with(".jpg") || url.ends_with(".png") {
-                    download_a_file(&url, "./pics/").await.unwrap();
+                    download_a_file(&url, &format!("./pics/{}", subreddit_clone)).await.unwrap();
                 }
             }
         })
     }).collect::<Vec<_>>();
 
     try_join_all(join_handles).await.unwrap();
-    Ok(())
+    Ok(response.data.after)
 }
