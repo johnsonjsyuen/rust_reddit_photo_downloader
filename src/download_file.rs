@@ -1,9 +1,12 @@
-use std::io::{copy, Write};
+use std::fs;
 use std::fs::File;
+use std::io::Write;
+
 use anyhow::Result;
 
-pub(crate) async fn download_a_file(url: &str) ->Result<(), anyhow::Error>{
+pub(crate) async fn download_a_file(url: &str, dest_dir: &str) -> Result<(), anyhow::Error> {
     let response = reqwest::get(url).await?;
+    fs::create_dir_all(dest_dir);
 
     let mut dest = {
         let fname = response
@@ -13,11 +16,12 @@ pub(crate) async fn download_a_file(url: &str) ->Result<(), anyhow::Error>{
             .and_then(|name| if name.is_empty() { None } else { Some(name) })
             .unwrap_or("tmp.bin");
 
+        let fname = format!("{}{}", dest_dir, fname);
+
         println!("file to download: '{}'", fname);
-        println!("will be located under: '{:?}'", fname);
         File::create(fname)?
     };
-    let mut content =  response.bytes().await?;
+    let mut content = response.bytes().await?;
     dest.write_all(&content).expect("Failed to write a file, permission issue?");
     Ok(())
 }
