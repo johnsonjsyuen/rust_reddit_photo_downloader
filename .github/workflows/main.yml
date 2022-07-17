@@ -4,14 +4,14 @@ name: CI
 
 jobs:
   build_and_test_ubuntu:
-    name: Rust project
+    name: Build and test Ubuntu
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@latest
+      - uses: actions-rs/toolchain@latest
         with:
           toolchain: stable
-      - uses: actions-rs/cargo@v1
+      - uses: actions-rs/cargo@latest
         with:
           command: build
           args: --release --all-features
@@ -19,12 +19,12 @@ jobs:
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "latest"
-          prerelease: true
+          prerelease: false
           title: "Development Build"
           files: |
             target/release/downloader
   build_and_test_windows:
-    name: Rust project
+    name: Build and test Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -39,7 +39,7 @@ jobs:
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "latest"
-          prerelease: true
+          prerelease: false
           title: "Development Build"
           files: |
             target/release/downloader.exe
