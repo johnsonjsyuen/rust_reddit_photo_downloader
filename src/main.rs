@@ -33,7 +33,7 @@ struct Args {
     subreddit: String,
     #[clap(short, long, value_parser)]
     period: Period,
-    #[clap(short, long, value_parser, default_value_t = 1)]
+    #[clap(short, long, value_parser, default_value_t = 0)]
     max_pages: u8,
 }
 
@@ -43,7 +43,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut pages_downloaded = 0;
 
     let mut after = String::new();
-    while &pages_downloaded < &args.max_pages{
+    while &args.max_pages == &0_u8 ||&pages_downloaded < &args.max_pages{
         match download_a_page(args.subreddit.clone(), &args.period.as_str(), &after).await?{
             None => break,
             Some(next) => after = next

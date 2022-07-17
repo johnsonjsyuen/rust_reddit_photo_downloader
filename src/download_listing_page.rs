@@ -45,7 +45,7 @@ pub async fn download_a_page(subreddit: String, period: &str, after_token: &str)
                 let url = &child.data.url;
                 println!("URL:{}", &url);
                 if url.ends_with(".jpg") || url.ends_with(".png") {
-                    download_a_file(&url, &format!("./pics/{}", subreddit_clone)).await.unwrap();
+                    download_a_file(&url, &format!("./pics/{}/", subreddit_clone)).await.unwrap();
                 }
             }
         })
