@@ -32,17 +32,18 @@ struct Args {
     #[clap(short, long, value_parser)]
     subreddit: String,
     #[clap(short, long, value_parser)]
-    period: Period
+    period: Period,
+    #[clap(short, long, value_parser, default_value_t = 1)]
+    max_pages: u8,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let args:Args = Args::parse();
-    let max_pages = 10;
-    let mut pages_downloaded = 1;
+    let mut pages_downloaded = 0;
 
     let mut after = String::new();
-    while &pages_downloaded < &max_pages{
+    while &pages_downloaded < &args.max_pages{
         match download_a_page(args.subreddit.clone(), &args.period.as_str(), &after).await?{
             None => break,
             Some(next) => after = next
