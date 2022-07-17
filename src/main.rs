@@ -9,26 +9,41 @@ use std::{hint, thread};
 
 use clap::Parser;
 
+#[derive(clap::ValueEnum, Clone, Debug)]
+enum Period {
+    Year,
+    Month,
+    Day,
+}
+
+impl Period {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Period::Year => "year",
+            Period::Month => "month",
+            Period::Day => "day"
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Name of the person to greet
     #[clap(short, long, value_parser)]
-    name: String,
-
-    /// Number of times to greet
-    #[clap(short, long, value_parser, default_value_t = 1)]
-    count: u8,
+    subreddit: String,
+    #[clap(short, long, value_parser)]
+    period: Period
 }
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    let args:Args = Args::parse();
     let max_pages = 10;
     let mut pages_downloaded = 1;
 
     let mut after = String::new();
     while &pages_downloaded < &max_pages{
-        match download_a_page("aww".to_owned(), "year", &after).await?{
+        match download_a_page(args.subreddit.clone(), &args.period.as_str(), &after).await?{
             None => break,
             Some(next) => after = next
         }
