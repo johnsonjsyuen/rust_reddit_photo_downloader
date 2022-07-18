@@ -19,7 +19,7 @@ pub(crate) async fn download_a_file(url: &str, dest_dir: &str, client: Client) -
 
         let fname = format!("{}{}", dest_dir, fname);
 
-        println!("file to download: '{}'", fname);
+        //println!("file to download: '{}'", fname);
         File::create(fname)?
     };
     let mut content = response.bytes().await?;

@@ -72,7 +72,7 @@ pub async fn produce_links_from_page(subreddit: String, period: &str, after_toke
 
     let urls = response.data.children.into_iter().map(|child| {
             let url = child.data.url;
-            println!("URL:{}", &url);
+            //println!("URL:{}", &url);
             if !child.data.is_video {
                 if url.ends_with(".jpg") || url.ends_with(".png") {
                     Some(url)
@@ -80,15 +80,15 @@ pub async fn produce_links_from_page(subreddit: String, period: &str, after_toke
                     if url.ends_with(".gifv") {
                         Some(url.replace(".gifv", ".mp4"))
                     }else{
-                        None 
+                        None
                     }
                 }else {
-                    None  
+                    None
                 }
             }else{
                 None
             }
     }).flatten().collect::<Vec<String>>();
-    
+
     Ok((response.data.after,urls))
 }
