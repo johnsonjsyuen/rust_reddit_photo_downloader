@@ -63,3 +63,32 @@ pub async fn download_a_page(subreddit: String, period: &str, after_token: &str,
     try_join_all(join_handles).await.unwrap();
     Ok(response.data.after)
 }
+
+pub async fn produce_links_from_page(subreddit: String, period: &str, after_token: &str, client: reqwest::Client) -> Result<(Option<String>,Vec<String>), anyhow::Error> {
+    let url = format!("https://www.reddit.com/r/{}/top.json?limit=100&sort=top&t={}&after={}", subreddit, period, after_token);
+    let response = reqwest::get(url).await?
+        .json::<ListingResponse>()
+        .await?;
+
+    let urls = response.data.children.into_iter().map(|child| {
+            let url = child.data.url;
+            println!("URL:{}", &url);
+            if !child.data.is_video {
+                if url.ends_with(".jpg") || url.ends_with(".png") {
+                    Some(url)
+                } else if child.data.domain == "i.imgur.com" {
+                    if url.ends_with(".gifv") {
+                        Some(url.replace(".gifv", ".mp4"))
+                    }else{
+                        None 
+                    }
+                }else {
+                    None  
+                }
+            }else{
+                None
+            }
+    }).flatten().collect::<Vec<String>>();
+    
+    Ok((response.data.after,urls))
+}
