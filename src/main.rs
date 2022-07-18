@@ -51,7 +51,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut pages_downloaded = 0;
 
     let client = reqwest::Client::new();
-    let barrier = Arc::new(Barrier::new(args.concurrency+1)); //9
+    let barrier = Arc::new(Barrier::new(args.concurrency));
 
     let (url_chan_send, url_chan_recv) = async_channel::unbounded::<String>();
 
@@ -77,19 +77,19 @@ async fn main() -> Result<(), anyhow::Error> {
             }
         };
         println!("Sent {} urls", count);
+        url_chan_send.close();
         bb.clone().wait().await;
         Ok(())
     });
 
     // Download the images
     let client2 = reqwest::Client::new();
-    let bc = barrier.clone();
-    let mut url_consumers: Vec<JoinHandle<Result<(), anyhow::Error>>> = (1..args.concurrency).map( // 1-9
+    let mut url_consumers: Vec<JoinHandle<Result<(), anyhow::Error>>> = (1..args.concurrency).map(
         |_| {
             let recv_clone = url_chan_recv.clone();
             let subreddit_clone = args.subreddit.clone();
             let client2_clone = client2.clone();
-            let bz = bc.clone();
+            let bz = barrier.clone();
             tokio::spawn(async move {
                 while let Ok(url) = recv_clone.recv().await {
                     download_a_file(&url, &format!("./pics/{}/", subreddit_clone.clone()), client2_clone.clone()).await.unwrap();
@@ -101,8 +101,8 @@ async fn main() -> Result<(), anyhow::Error> {
     ).collect::<Vec<_>>();
 
     // Await everything
-    url_producer.await?;
-    try_join_all(url_consumers);
+    url_consumers.insert(0,url_producer);
+    futures::future::join_all(url_consumers).await;
 
     Ok(())
 }
