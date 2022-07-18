@@ -3,9 +3,10 @@ use std::fs::File;
 use std::io::Write;
 
 use anyhow::Result;
+use reqwest::Client;
 
-pub(crate) async fn download_a_file(url: &str, dest_dir: &str) -> Result<(), anyhow::Error> {
-    let response = reqwest::get(url).await?;
+pub(crate) async fn download_a_file(url: &str, dest_dir: &str, client: Client) -> Result<(), anyhow::Error> {
+    let response = client.get(url).send().await?;
     fs::create_dir_all(dest_dir);
 
     let mut dest = {

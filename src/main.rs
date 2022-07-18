@@ -41,12 +41,16 @@ struct Args {
 async fn main() -> Result<(), anyhow::Error> {
     let args:Args = Args::parse();
     let mut pages_downloaded = 0;
+    let client = reqwest::Client::new();
 
     let mut after = String::new();
-    while &args.max_pages == &0_u8 ||&pages_downloaded < &args.max_pages{
-        match download_a_page(args.subreddit.clone(), &args.period.as_str(), &after).await?{
+    while &args.max_pages == &0_u8 || &pages_downloaded < &args.max_pages{
+        match download_a_page(args.subreddit.clone(), &args.period.as_str(), &after, client.clone()).await?{
             None => break,
-            Some(next) => after = next
+            Some(next) => {
+                pages_downloaded += 1;
+                after = next
+            }
         }
         };
 
