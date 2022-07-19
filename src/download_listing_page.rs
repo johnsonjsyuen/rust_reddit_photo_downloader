@@ -64,7 +64,7 @@ pub async fn download_a_page(subreddit: String, period: &str, after_token: &str,
     Ok(response.data.after)
 }
 
-pub async fn produce_links_from_page(subreddit: String, period: &str, after_token: &str, client: reqwest::Client) -> Result<(Option<String>,Vec<String>), anyhow::Error> {
+pub async fn produce_links_from_page(subreddit: &str, period: &str, after_token: &str, client: Client) -> Result<(Option<String>,Vec<String>), anyhow::Error> {
     let url = format!("https://www.reddit.com/r/{}/top.json?limit=100&sort=top&t={}&after={}", subreddit, period, after_token);
     let response = reqwest::get(url).await?
         .json::<ListingResponse>()
