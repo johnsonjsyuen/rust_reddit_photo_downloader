@@ -14,3 +14,8 @@ serde_json = "1.0"
 futures = "0.3.21"
 clap =  { version = "3.2.12", features = ["derive"] }
 async-channel = "1.6.1"
+
+[profile.release]
+opt-level = "z"
+strip = true
+codegen-units = 1

@@ -19,6 +19,7 @@ mod download_listing_page;
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Period {
+    All,
     Year,
     Month,
     Day,
@@ -27,6 +28,7 @@ enum Period {
 impl Period {
     fn as_str(&self) -> &'static str {
         match self {
+            Period::All => "all",
             Period::Year => "year",
             Period::Month => "month",
             Period::Day => "day"
