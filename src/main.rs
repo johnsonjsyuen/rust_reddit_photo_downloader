@@ -1,18 +1,15 @@
-use std::{hint, thread};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use anyhow::Error;
 use async_channel::{Receiver, Sender};
 
 use clap::Parser;
-use futures::future::try_join_all;
 use reqwest::Client;
 use tokio::sync::{Barrier, RwLock};
-use tokio::sync::broadcast;
+
 use tokio::task::JoinHandle;
 
 use crate::download_file::download_a_file;
-use crate::download_listing_page::{download_a_page, produce_links_from_page};
+use crate::download_listing_page::{produce_links_from_page};
 
 mod download_file;
 mod download_listing_page;
@@ -84,7 +81,7 @@ fn consume_urls(subreddit: &Arc<RwLock<String>>, completion_barrier: Arc<Barrier
     (1..concurrency).map(
         |_| {
             let recv_clone = url_chan_recv.clone();
-            let sr = Arc::clone(&subreddit);
+            let sr = Arc::clone(subreddit);
             let client2_clone = client.clone();
             let bz = completion_barrier.clone();
             tokio::spawn(async move {

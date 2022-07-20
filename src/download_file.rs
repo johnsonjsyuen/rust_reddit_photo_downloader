@@ -7,7 +7,7 @@ use reqwest::Client;
 
 pub(crate) async fn download_a_file(url: &str, dest_dir: &str, client: Client) -> Result<(), anyhow::Error> {
     let response = client.get(url).send().await?;
-    fs::create_dir_all(dest_dir);
+    fs::create_dir_all(dest_dir)?;
 
     let mut dest = {
         let fname = response
@@ -22,7 +22,7 @@ pub(crate) async fn download_a_file(url: &str, dest_dir: &str, client: Client) -
         //println!("file to download: '{}'", fname);
         File::create(fname)?
     };
-    let mut content = response.bytes().await?;
+    let content = response.bytes().await?;
     dest.write_all(&content).expect("Failed to write a file, permission issue?");
     Ok(())
 }
