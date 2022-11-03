@@ -81,15 +81,15 @@ fn consume_urls(subreddit: &Arc<RwLock<String>>, completion_barrier: Arc<Barrier
     (1..concurrency).map(
         |_| {
             let recv_clone = url_chan_recv.clone();
-            let sr = Arc::clone(subreddit);
+            let arc_subreddit = Arc::clone(subreddit);
             let client2_clone = client.clone();
-            let bz = completion_barrier.clone();
+            let arc_barrier = completion_barrier.clone();
             tokio::spawn(async move {
-                let subreddit_clone = sr.read().await;
+                let subreddit_clone = arc_subreddit.read().await;
                 while let Ok(url) = recv_clone.recv().await {
                     download_a_file(&url, &format!("./pics/{}/", subreddit_clone.clone()), client2_clone.clone()).await.unwrap();
                 }
-                bz.wait().await;
+                arc_barrier.wait().await;
                 Ok(())
             })
         }
