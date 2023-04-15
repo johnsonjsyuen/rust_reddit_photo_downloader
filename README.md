@@ -8,3 +8,8 @@ Usage
 ```
 ./downloader --subreddit aww --period month  --max-pages 3
 ```
+
+## Compile in Docker for Linux
+```
+docker run --rm --user "$(id -u)":"$(id -g)" -v "$PWD":/usr/src/myapp -w /usr/src/myapp rust:1.68.2 cargo build --release
+```
