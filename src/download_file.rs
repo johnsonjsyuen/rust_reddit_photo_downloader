@@ -5,7 +5,11 @@ use std::io::Write;
 use anyhow::Result;
 use reqwest::Client;
 
-pub(crate) async fn download_a_file(url: &str, dest_dir: &str, client: Client) -> Result<(), anyhow::Error> {
+pub(crate) async fn download_a_file(
+    url: &str,
+    dest_dir: &str,
+    client: Client,
+) -> Result<(), anyhow::Error> {
     let response = client.get(url).send().await?;
     fs::create_dir_all(dest_dir)?;
 
@@ -23,6 +27,7 @@ pub(crate) async fn download_a_file(url: &str, dest_dir: &str, client: Client) -
         File::create(fname)?
     };
     let content = response.bytes().await?;
-    dest.write_all(&content).expect("Failed to write a file, permission issue?");
+    dest.write_all(&content)
+        .expect("Failed to write a file, permission issue?");
     Ok(())
 }
