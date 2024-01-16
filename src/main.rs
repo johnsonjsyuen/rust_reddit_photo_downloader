@@ -47,6 +47,7 @@ struct Args {
 }
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const DOWNLOAD_DIRECTORY: &str = "./pics";
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -104,7 +105,7 @@ fn consume_urls(
                 while let Ok(url) = recv_clone.recv().await {
                     download_a_file(
                         &url,
-                        &format!("./pics/{}/", subreddit_clone.clone()),
+                        &format!("{}/{}/", DOWNLOAD_DIRECTORY, subreddit_clone.clone()),
                         client2_clone.clone(),
                     )
                     .await
