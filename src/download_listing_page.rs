@@ -1,32 +1,7 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-struct ListingDetail {
-    title: String,
-    id: String,
-    url: String,
-    is_video: bool,
-    domain: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-struct Listing {
-    data: ListingDetail,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-struct ListingData {
-    children: Vec<Listing>,
-    after: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-struct ListingResponse {
-    kind: String,
-    data: ListingData,
-}
+use crate::models::{Listing, ListingData, ListingDetail, ListingResponse};
 
 async fn parse_links_from_page(
     listing_response: ListingResponse,
@@ -84,9 +59,8 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use crate::download_listing_page::{
-        parse_links_from_page, Listing, ListingData, ListingDetail, ListingResponse,
-    };
+    use crate::download_listing_page::parse_links_from_page;
+    use crate::models::{Listing, ListingData, ListingDetail, ListingResponse};
 
     #[tokio::test]
     async fn able_to_load_test_file_from_resources() {

@@ -8,11 +8,14 @@ use tokio::sync::{Barrier, RwLock};
 
 use tokio::task::JoinHandle;
 
+use rusqlite::{params, Connection, Result};
+
 use crate::download_file::download_a_file;
 use crate::download_listing_page::produce_links_from_page;
 
 mod download_file;
 mod download_listing_page;
+mod models;
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Period {
@@ -51,6 +54,8 @@ const DOWNLOAD_DIRECTORY: &str = "./pics";
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    init_db(None);
+
     let args: Args = Args::parse();
     let client = Client::builder().user_agent(USER_AGENT).build()?;
     let subreddit = Arc::new(RwLock::new(args.subreddit));
@@ -84,6 +89,22 @@ async fn main() -> Result<(), anyhow::Error> {
     url_consumers.insert(0, url_producer);
     futures::future::join_all(url_consumers).await;
 
+    Ok(())
+}
+
+fn init_db(db_name: Option<String>) -> Result<()> {
+    let path = db_name.unwrap_or_else(||"reddit_listings.db".to_string());
+    let db = Connection::open(path)?;
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS listing (
+            id       TEXT PRIMARY KEY,
+            title    TEXT NOT NULL,
+            url      TEXT NOT NULL,
+            is_video INTEGER NOT NULL,
+            domain   TEXT BLOB
+        ) STRICT",
+        (), // empty list of parameters.
+    )?;
     Ok(())
 }
 
