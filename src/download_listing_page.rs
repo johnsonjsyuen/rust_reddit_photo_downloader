@@ -1,9 +1,8 @@
 use anyhow::Result;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use crate::models::{Listing, ListingData, ListingDetail, ListingResponse};
+use crate::models::{ListingResponse};
 
-async fn parse_links_from_page(
+pub(crate) async fn parse_links_from_page(
     listing_response: ListingResponse,
 ) -> Result<(Option<String>, Vec<String>), anyhow::Error> {
     let urls = listing_response
@@ -34,12 +33,12 @@ async fn parse_links_from_page(
     Ok((listing_response.data.after, urls))
 }
 
-pub async fn produce_links_from_page(
+pub async fn get_listing(
     subreddit: &str,
     period: &str,
     after_token: &str,
     client: Client,
-) -> Result<(Option<String>, Vec<String>), anyhow::Error> {
+) -> Result<ListingResponse, anyhow::Error> {
     let url = format!(
         "https://www.reddit.com/r/{}/top.json?limit=100&sort=top&t={}&after={}",
         subreddit, period, after_token
@@ -51,7 +50,7 @@ pub async fn produce_links_from_page(
         .json::<ListingResponse>()
         .await?;
 
-    Ok(parse_links_from_page(response).await?)
+    Ok(response)
 }
 
 #[cfg(test)]

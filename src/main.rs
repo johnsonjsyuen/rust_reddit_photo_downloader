@@ -22,7 +22,8 @@ use duckdb::arrow::util::pretty::print_batches;
 
 
 use crate::download_file::download_a_file;
-use crate::download_listing_page::produce_links_from_page;
+use crate::download_listing_page::get_listing;
+use crate::models::ListingResponse;
 
 mod download_file;
 mod download_listing_page;
@@ -58,6 +59,8 @@ struct Args {
     max_pages: u8,
     #[clap(short, long, value_parser, default_value_t = 100)]
     concurrency: usize,
+    #[clap(short, long, value_parser, default_value = "reddit_listings.db")]
+    db_path: String,
 }
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -65,10 +68,13 @@ const DOWNLOAD_DIRECTORY: &str = "./pics";
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    init_db(None).expect("Could not init DB");
-
     let args: Args = Args::parse();
+    let path = args.db_path;
+    let db = Arc::new(RwLock::new(Connection::open(path)?));
+    init_db(Arc::clone(&db)).await.expect("Could not init DB");
+
     let client = Client::builder().user_agent(USER_AGENT).build()?;
+
     let subreddit = Arc::new(RwLock::new(args.subreddit));
 
     // Barrier needed to sync termination of program
@@ -103,18 +109,17 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn init_db(db_name: Option<String>) -> Result<()> {
-    let path = db_name.unwrap_or_else(||"reddit_listings.db".to_string());
-    let db = Connection::open(path)?;
-    db.execute_batch(
+async fn init_db(db: Arc<RwLock<Connection>>) -> Result<()> {
+    let conn = db.read().await;
+    conn.execute_batch(
         r"CREATE SEQUENCE seq;
         CREATE TABLE IF NOT EXISTS listing (
-            id       TEXT PRIMARY KEY,
-            title    TEXT NOT NULL,
-            url      TEXT NOT NULL,
+            id       VARCHAR PRIMARY KEY,
+            title    VARCHAR NOT NULL,
+            url      VARCHAR NOT NULL,
             is_video BOOLEAN NOT NULL,
-            domain   TEXT
-        ) STRICT;"
+            domain   VARCHAR
+        );"
     )?;
     Ok(())
 }
@@ -164,8 +169,15 @@ fn produce_urls(
         let mut pages_downloaded = 0;
         let subreddit = subreddit_arc.read().await;
         while max_pages == 0_u8 || pages_downloaded < max_pages {
-            let produce =
-                produce_links_from_page(&subreddit, &period, &after, client.clone()).await?;
+            let listing_response =
+                get_listing(&subreddit, &period, &after, client.clone()).await?;
+
+            let store_res = store_listings_in_db(listing_response.clone()).is_ok();
+            if !store_res {
+                println!("Could not write listings to DB, continuing.")
+            }
+
+            let produce = download_listing_page::parse_links_from_page(listing_response).await?;
             for url in produce.1.into_iter() {
                 count += 1;
                 url_chan_send.send(url.clone()).await?;
@@ -186,4 +198,9 @@ fn produce_urls(
         Ok(())
     });
     url_producer
+}
+
+fn store_listings_in_db(listing_response: ListingResponse) -> Result<(), Error> {
+
+    Ok(())
 }
