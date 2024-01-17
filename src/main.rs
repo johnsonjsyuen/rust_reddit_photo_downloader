@@ -7,8 +7,19 @@ use reqwest::Client;
 use tokio::sync::{Barrier, RwLock};
 
 use tokio::task::JoinHandle;
+use duckdb::{params, Connection, Result};
 
-use rusqlite::{params, Connection, Result};
+// In your project, we need to keep the arrow version same as the version used in duckdb.
+// Refer to https://github.com/wangfenjin/duckdb-rs/issues/92
+// You can either:
+use duckdb::arrow::record_batch::RecordBatch;
+// Or in your Cargo.toml, use * as the version; features can be toggled according to your needs
+// arrow = { version = "*", default-features = false, features = ["prettyprint"] }
+// Then you can:
+// use arrow::record_batch::RecordBatch;
+
+use duckdb::arrow::util::pretty::print_batches;
+
 
 use crate::download_file::download_a_file;
 use crate::download_listing_page::produce_links_from_page;
@@ -54,7 +65,7 @@ const DOWNLOAD_DIRECTORY: &str = "./pics";
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    init_db(None);
+    init_db(None).expect("Could not init DB");
 
     let args: Args = Args::parse();
     let client = Client::builder().user_agent(USER_AGENT).build()?;
@@ -95,15 +106,15 @@ async fn main() -> Result<(), anyhow::Error> {
 fn init_db(db_name: Option<String>) -> Result<()> {
     let path = db_name.unwrap_or_else(||"reddit_listings.db".to_string());
     let db = Connection::open(path)?;
-    db.execute(
-        "CREATE TABLE IF NOT EXISTS listing (
+    db.execute_batch(
+        r"CREATE SEQUENCE seq;
+        CREATE TABLE IF NOT EXISTS listing (
             id       TEXT PRIMARY KEY,
             title    TEXT NOT NULL,
             url      TEXT NOT NULL,
-            is_video INTEGER NOT NULL,
-            domain   TEXT BLOB
-        ) STRICT",
-        (), // empty list of parameters.
+            is_video BOOLEAN NOT NULL,
+            domain   TEXT
+        ) STRICT;"
     )?;
     Ok(())
 }
