@@ -70,8 +70,10 @@ const DOWNLOAD_DIRECTORY: &str = "./pics";
 async fn main() -> Result<(), anyhow::Error> {
     let args: Args = Args::parse();
     let path = args.db_path;
-    let db = Arc::new(RwLock::new(Connection::open(path)?));
-    init_db(Arc::clone(&db)).await.expect("Could not init DB");
+    let successful_init_db  = init_db(path.clone()).await.is_ok();
+    if !successful_init_db{
+        println!("Could not initialize DB")
+    }
 
     let client = Client::builder().user_agent(USER_AGENT).build()?;
 
@@ -92,6 +94,7 @@ async fn main() -> Result<(), anyhow::Error> {
         args.period.as_str().to_owned(),
         comp_barr_1,
         subreddit_1,
+        path.clone()
     );
 
     // Download the images by consuming urls from channel
@@ -104,14 +107,18 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // Await everything
     url_consumers.insert(0, url_producer);
+    let successful_export = export_db(path.clone()).await.is_ok();
+    if !successful_export {
+        println!("Could not export DB to Parquet")
+    }
     futures::future::join_all(url_consumers).await;
 
     Ok(())
 }
 
-async fn init_db(db: Arc<RwLock<Connection>>) -> Result<()> {
-    let conn = db.read().await;
-    conn.execute_batch(
+async fn init_db(db_path: String) -> Result<()> {
+    let db = Connection::open(db_path)?;
+    db.execute_batch(
         r"CREATE SEQUENCE seq;
         CREATE TABLE IF NOT EXISTS listing (
             id       VARCHAR PRIMARY KEY,
@@ -120,6 +127,14 @@ async fn init_db(db: Arc<RwLock<Connection>>) -> Result<()> {
             is_video BOOLEAN NOT NULL,
             domain   VARCHAR
         );"
+    )?;
+    Ok(())
+}
+
+async fn export_db(db_path: String) -> Result<()> {
+    let db = Connection::open(db_path)?;
+    db.execute_batch(
+        r"COPY listing TO 'output.parquet' (FORMAT PARQUET);"
     )?;
     Ok(())
 }
@@ -162,6 +177,7 @@ fn produce_urls(
     period: String,
     completion_barrier: Arc<Barrier>,
     subreddit_arc: Arc<RwLock<String>>,
+    db_path: String,
 ) -> JoinHandle<Result<(), Error>> {
     let url_producer: JoinHandle<Result<(), Error>> = tokio::spawn(async move {
         let mut after = String::new();
@@ -172,7 +188,7 @@ fn produce_urls(
             let listing_response =
                 get_listing(&subreddit, &period, &after, client.clone()).await?;
 
-            let store_res = store_listings_in_db(listing_response.clone()).is_ok();
+            let store_res = store_listings_in_db(db_path.clone(), listing_response.clone()).is_ok();
             if !store_res {
                 println!("Could not write listings to DB, continuing.")
             }
@@ -200,7 +216,18 @@ fn produce_urls(
     url_producer
 }
 
-fn store_listings_in_db(listing_response: ListingResponse) -> Result<(), Error> {
-
+fn store_listings_in_db(db_path: String, listing_response: ListingResponse) -> Result<(), Error> {
+    let db = Connection::open(db_path)?;
+    let mut app = db.appender("listing")?;
+    let listings = listing_response.data.children;
+    for listing in listings {
+        app.append_row(params![
+            listing.data.id,
+            listing.data.title,
+            listing.data.url,
+            listing.data.is_video,
+            listing.data.domain
+            ])?;
+    }
     Ok(())
 }
