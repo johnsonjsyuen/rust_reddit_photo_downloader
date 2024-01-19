@@ -3,3 +3,5 @@
 *.png
 *.mp4
 *.db
+*.parquet
+*.db.wal

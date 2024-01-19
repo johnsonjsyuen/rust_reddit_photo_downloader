@@ -107,11 +107,11 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // Await everything
     url_consumers.insert(0, url_producer);
+    futures::future::join_all(url_consumers).await;
     let successful_export = export_db(path.clone()).await.is_ok();
     if !successful_export {
         println!("Could not export DB to Parquet")
     }
-    futures::future::join_all(url_consumers).await;
 
     Ok(())
 }
