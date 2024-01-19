@@ -7,27 +7,14 @@ use reqwest::Client;
 use tokio::sync::{Barrier, RwLock};
 
 use tokio::task::JoinHandle;
-use duckdb::{params, Connection, Result};
-
-// In your project, we need to keep the arrow version same as the version used in duckdb.
-// Refer to https://github.com/wangfenjin/duckdb-rs/issues/92
-// You can either:
-use duckdb::arrow::record_batch::RecordBatch;
-// Or in your Cargo.toml, use * as the version; features can be toggled according to your needs
-// arrow = { version = "*", default-features = false, features = ["prettyprint"] }
-// Then you can:
-// use arrow::record_batch::RecordBatch;
-
-use duckdb::arrow::util::pretty::print_batches;
-
 
 use crate::download_file::download_a_file;
 use crate::download_listing_page::get_listing;
-use crate::models::ListingResponse;
 
 mod download_file;
 mod download_listing_page;
 mod models;
+mod database;
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Period {
@@ -70,7 +57,7 @@ const DOWNLOAD_DIRECTORY: &str = "./pics";
 async fn main() -> Result<(), anyhow::Error> {
     let args: Args = Args::parse();
     let path = args.db_path;
-    let successful_init_db  = init_db(path.clone()).await.is_ok();
+    let successful_init_db  = database::init_db(path.clone()).await.is_ok();
     if !successful_init_db{
         println!("Could not initialize DB")
     }
@@ -108,34 +95,11 @@ async fn main() -> Result<(), anyhow::Error> {
     // Await everything
     url_consumers.insert(0, url_producer);
     futures::future::join_all(url_consumers).await;
-    let successful_export = export_db(path.clone()).await.is_ok();
+    let successful_export = database::export_db(&path).await.is_ok();
     if !successful_export {
         println!("Could not export DB to Parquet")
     }
 
-    Ok(())
-}
-
-async fn init_db(db_path: String) -> Result<()> {
-    let db = Connection::open(db_path)?;
-    db.execute_batch(
-        r"CREATE SEQUENCE seq;
-        CREATE TABLE IF NOT EXISTS listing (
-            id       VARCHAR PRIMARY KEY,
-            title    VARCHAR NOT NULL,
-            url      VARCHAR NOT NULL,
-            is_video BOOLEAN NOT NULL,
-            domain   VARCHAR
-        );"
-    )?;
-    Ok(())
-}
-
-async fn export_db(db_path: String) -> Result<()> {
-    let db = Connection::open(db_path)?;
-    db.execute_batch(
-        r"COPY listing TO 'output.parquet' (FORMAT PARQUET);"
-    )?;
     Ok(())
 }
 
@@ -188,7 +152,7 @@ fn produce_urls(
             let listing_response =
                 get_listing(&subreddit, &period, &after, client.clone()).await?;
 
-            let store_res = store_listings_in_db(db_path.clone(), listing_response.clone()).is_ok();
+            let store_res = database::store_listings_in_db(&db_path, &subreddit, listing_response.clone()).is_ok();
             if !store_res {
                 println!("Could not write listings to DB, continuing.")
             }
@@ -214,20 +178,4 @@ fn produce_urls(
         Ok(())
     });
     url_producer
-}
-
-fn store_listings_in_db(db_path: String, listing_response: ListingResponse) -> Result<(), Error> {
-    let db = Connection::open(db_path)?;
-    let mut app = db.appender("listing")?;
-    let listings = listing_response.data.children;
-    for listing in listings {
-        app.append_row(params![
-            listing.data.id,
-            listing.data.title,
-            listing.data.url,
-            listing.data.is_video,
-            listing.data.domain
-            ])?;
-    }
-    Ok(())
 }
