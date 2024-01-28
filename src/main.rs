@@ -56,6 +56,7 @@ const DOWNLOAD_DIRECTORY: &str = "./pics";
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let args: Args = Args::parse();
+
     let path = args.db_path;
     let successful_init_db  = database::init_db(path.clone()).await.is_ok();
     if !successful_init_db{
@@ -63,12 +64,9 @@ async fn main() -> Result<(), anyhow::Error> {
     }
 
     let client = Client::builder().user_agent(USER_AGENT).build()?;
-
     let subreddit = Arc::new(RwLock::new(args.subreddit));
-
     // Barrier needed to sync termination of program
     let completion_barrier = Arc::new(Barrier::new(args.concurrency));
-
     let (url_chan_send, url_chan_recv) = async_channel::unbounded::<String>();
 
     // Get and extract urls from Subreddit, send it to url channel
@@ -95,11 +93,11 @@ async fn main() -> Result<(), anyhow::Error> {
     // Await everything
     url_consumers.insert(0, url_producer);
     futures::future::join_all(url_consumers).await;
+
     let successful_export = database::export_db(&path).await.is_ok();
     if !successful_export {
         println!("Could not export DB to Parquet")
     }
-
     Ok(())
 }
 
